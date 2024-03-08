@@ -1,0 +1,63 @@
+python -m torch.distributed.launch --nproc_per_node=4 run_vqkd_training.py \
+    --data_set image_folder \
+    --data_path /mnt/100_data6/xiaomi/data/vqkd_data/train \
+    --eval_data_path /mnt/100_data6/xiaomi/data/vqkd_data/test \
+    --output_dir /home/xiaomi/unilm/beit2/outputs \
+    --log_dir /home/xiaomi/unilm/beit2/outputs \
+    --process_type default \
+    --train_interpolation bicubic \
+    --min_crop_scale 0.08 \
+    --model vqkd_encoder_base_decoder_1x768x12_dino \
+    --teacher_model_type dino\
+    --teacher_input_size 224 \
+    --codebook_n_emd 8192  \
+    --codebook_emd_dim 32 \
+    --quantize_kmeans_init \
+    --rec_loss_type cosine \
+    --batch_size 32 \
+    --opt adamw \
+    --opt_betas 0.9 0.99 \
+    --weight_decay 1e-4  \
+    --warmup_epochs 10 \
+    --epochs 100 \
+    --save_ckpt_freq 20 
+
+
+python -m torch.distributed.launch --nproc_per_node=4 run_beitv2_pretraining.py \
+        --data_set image_folder \
+        --data_path /home/xiaomi/unilm/beit2/data/train/ \
+        --output_dir /home/xiaomi/unilm/beit2/beit_output \
+        --log_dir /home/xiaomi/unilm/beit2/beit_output/ \
+        --model beit_base_patch16_224_8k_vocab_cls_pt \
+        --resume /home/xiaomi/unilm/beit2/checkpoints/beitv2_base_patch16_224_pt1k.pth \
+        --shared_lm_head True \
+        --early_layers 9 \
+        --head_layers 2 \
+        --num_mask_patches 75 \
+        --second_input_size 224 \
+        --second_interpolation bicubic \
+        --min_crop_scale 0.2 \
+        --tokenizer_model vqkd_encoder_base_decoder_1x768x12_dino \
+        --tokenizer_weight /home/xiaomi/unilm/beit2/vqkd_outputs/checkpoint-99.pth \
+        --batch_size 32 \
+        --lr 1.5e-3 \
+        --warmup_epochs 10 \
+        --clip_grad 3.0 \
+        --drop_path 0.1 \
+        --layer_scale_init_value 0.1 \
+        --imagenet_default_mean_and_std \
+        --opt_betas 0.9 0.999 \
+        --opt_eps 1e-8  \
+        --epochs 100 \
+        --save_ckpt_freq 20 
+
+python visualize_attention.py \
+  --model beit_base_patch16_224_8k_vocab_cls_pt \
+  --disable_rel_pos_bias \
+  --abs_pos_emb \
+  --layer_scale_init_value 0 \
+  --input_size 480 \
+  --pretrained_weights /home/xiaomi/unilm/beit2/checkpoints/beitv2_base_patch16_224_pt1k.pth \
+  --image_path /home/xiaomi/unilm/beit2/data/test/images/bottle_000.png \
+  --selected_row 11 \
+  --selected_col 13
